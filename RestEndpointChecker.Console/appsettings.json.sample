@@ -6,6 +6,17 @@
       "Microsoft.Hosting.Lifetime": "Information"
     }
   },
+  "Email": {
+    "SmtpServer": "your_smtp_server",
+    "SmtpPort": 25,
+    "FromAddress": "your-email@your_domain",
+    "ToAddress": "your-email@your_domain",
+    "Subject": "unconfigured subject",
+    "Username": null,
+    "Password": null,
+    "UseSsl": false,
+    "AcceptAllCertificates": false
+  },
   "Urls": [
     "http://www.google.com"
   ]

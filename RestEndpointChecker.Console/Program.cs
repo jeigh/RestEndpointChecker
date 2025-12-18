@@ -1,11 +1,19 @@
 ﻿using System.Diagnostics;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 
 namespace RestEndpointChecker.Console
 {
     internal class Program
     {
-        static async Task Main(string[] args)
+        static async Task<int> Main(string[] args)
+        {
+            bool verbose = args.Contains("--verbose") || args.Contains("-v");
+            await RunChecksAsync(verbose);
+            return 0;
+        }
+
+        static async Task RunChecksAsync(bool verbose)
         {
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(AppContext.BaseDirectory)
@@ -15,13 +23,17 @@ namespace RestEndpointChecker.Console
             var config = new UrlConfig();
             configuration.Bind(config);
 
+            var emailConfig = new EmailConfig();
+            configuration.GetSection("Email").Bind(emailConfig);
+
             if (config?.Urls == null || config.Urls.Length == 0)
             {
                 System.Console.WriteLine("Error: No URLs found in configuration file.");
                 return;
             }
 
-            System.Console.WriteLine($"Testing URLs at {DateTime.Now}...\n");
+            var resultMessage = new StringBuilder();
+            resultMessage.AppendLine($"Testing URLs at {DateTime.Now}...\n");
 
             using var httpClient = new HttpClient
             {
@@ -68,12 +80,15 @@ namespace RestEndpointChecker.Console
                 failures.Add((url, statusCode, description));
             }
 
-            if (failures.Count == 0) System.Console.WriteLine("✓ All URLs returned successful responses (200 OK)");
+            if (failures.Count == 0)
+            {
+                resultMessage.AppendLine("✓ All URLs returned successful responses (200 OK)");
+            }
             else
             {
-                System.Console.WriteLine("┌───────────────────────────────────────────────────────────────┬────────────┬──────────────────────────────────┐");
-                System.Console.WriteLine("│ URL                                                           │ Status     │ Description                      │");
-                System.Console.WriteLine("├───────────────────────────────────────────────────────────────┼────────────┼──────────────────────────────────┤");
+                resultMessage.AppendLine("┌───────────────────────────────────────────────────────────────┬────────────┬──────────────────────────────────┐");
+                resultMessage.AppendLine("│ URL                                                           │ Status     │ Description                      │");
+                resultMessage.AppendLine("├───────────────────────────────────────────────────────────────┼────────────┼──────────────────────────────────┤");
 
                 foreach (var (url, statusCode, description) in failures)
                 {
@@ -81,10 +96,33 @@ namespace RestEndpointChecker.Console
                     var statusFormatted = statusCode.PadRight(10);
                     var descFormatted = description.Length > 32 ? description.Substring(0, 29) + "..." : description.PadRight(32);
 
-                    System.Console.WriteLine($"│ {urlFormatted} │ {statusFormatted} │ {descFormatted} │");
+                    resultMessage.AppendLine($"│ {urlFormatted} │ {statusFormatted} │ {descFormatted} │");
                 }
 
-                System.Console.WriteLine("└───────────────────────────────────────────────────────────────┴────────────┴──────────────────────────────────┘");
+                resultMessage.AppendLine("└───────────────────────────────────────────────────────────────┴────────────┴──────────────────────────────────┘");
+            }
+
+            if (verbose)
+            {
+                System.Console.Write(resultMessage.ToString());
+            }
+            else
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(emailConfig.SmtpServer))
+                    {
+                        var emailService = new EmailService(emailConfig);
+                        await emailService.SendResultsAsync(resultMessage.ToString());
+                        System.Console.WriteLine($"Results sent via email to {emailConfig.ToAddress}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Console.WriteLine($"Failed to send email: {ex.Message}");
+                    System.Console.WriteLine("Results:");
+                    System.Console.Write(resultMessage.ToString());
+                }
             }
         }
     }
