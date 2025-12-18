@@ -37,7 +37,7 @@ namespace RestEndpointChecker.Console
 
             using var httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(10)
+                Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds)
             };
 
             var failures = new List<(string Url, string StatusCode, string Description)>();
@@ -62,7 +62,7 @@ namespace RestEndpointChecker.Console
                 {
                     stopwatch.Stop();
                     statusCode = "TIMEOUT";
-                    description = "Request timed out (>10s)";
+                    description = $"Request timed out (>{config.TimeoutSeconds}s)";
                 }
                 catch (HttpRequestException ex)
                 {
@@ -130,5 +130,6 @@ namespace RestEndpointChecker.Console
     class UrlConfig
     {
         public string[] Urls { get; set; } = Array.Empty<string>();
+        public int TimeoutSeconds { get; set; } = 10;
     }
 }

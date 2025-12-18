@@ -18,7 +18,17 @@ namespace RestEndpointChecker.Console
         {
             using var message = new MimeMessage();
             message.From.Add(MailboxAddress.Parse(_config.FromAddress));
-            message.To.Add(MailboxAddress.Parse(_config.ToAddress));
+
+            var recipients = _config.ToAddress
+                .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(email => email.Trim())
+                .Where(email => !string.IsNullOrWhiteSpace(email));
+
+            foreach (var recipient in recipients)
+            {
+                message.To.Add(MailboxAddress.Parse(recipient));
+            }
+
             message.Subject = _config.Subject;
 
             var htmlBody = $@"<!DOCTYPE html>

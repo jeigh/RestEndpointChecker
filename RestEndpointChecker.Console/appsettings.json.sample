@@ -6,6 +6,7 @@
       "Microsoft.Hosting.Lifetime": "Information"
     }
   },
+  "TimeoutSeconds": 10,
   "Email": {
     "SmtpServer": "your_smtp_server",
     "SmtpPort": 25,
