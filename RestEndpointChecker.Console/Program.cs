@@ -8,8 +8,7 @@ namespace RestEndpointChecker.Console
     {
         static async Task<int> Main(string[] args)
         {
-            bool verbose = args.Contains("--verbose") || args.Contains("-v");
-            await RunChecksAsync(verbose);
+            await RunChecksAsync(true);
             return 0;
         }
 
@@ -80,11 +79,7 @@ namespace RestEndpointChecker.Console
                 failures.Add((url, statusCode, description));
             }
 
-            if (failures.Count == 0)
-            {
-                resultMessage.AppendLine("✓ All URLs returned successful responses (200 OK)");
-            }
-            else
+            if (failures.Count != 0)
             {
                 resultMessage.AppendLine("┌───────────────────────────────────────────────────────────────┬────────────┬──────────────────────────────────┐");
                 resultMessage.AppendLine("│ URL                                                           │ Status     │ Description                      │");
@@ -102,27 +97,22 @@ namespace RestEndpointChecker.Console
                 resultMessage.AppendLine("└───────────────────────────────────────────────────────────────┴────────────┴──────────────────────────────────┘");
             }
 
-            if (verbose)
+            System.Console.WriteLine(resultMessage.ToString());
+
+            try
             {
-                System.Console.Write(resultMessage.ToString());
+                if (!string.IsNullOrWhiteSpace(emailConfig.SmtpServer) && failures.Count != 0)
+                {
+                    var emailService = new EmailService(emailConfig);
+                    await emailService.SendResultsAsync(resultMessage.ToString());
+                    System.Console.WriteLine($"Results sent via email to {emailConfig.ToAddress}");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                try
-                {
-                    if (!string.IsNullOrWhiteSpace(emailConfig.SmtpServer))
-                    {
-                        var emailService = new EmailService(emailConfig);
-                        await emailService.SendResultsAsync(resultMessage.ToString());
-                        System.Console.WriteLine($"Results sent via email to {emailConfig.ToAddress}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Console.WriteLine($"Failed to send email: {ex.Message}");
-                    System.Console.WriteLine("Results:");
-                    System.Console.Write(resultMessage.ToString());
-                }
+                System.Console.WriteLine($"Failed to send email: {ex.Message}");
+                System.Console.WriteLine("Results:");
+                System.Console.Write(resultMessage.ToString());
             }
         }
     }
